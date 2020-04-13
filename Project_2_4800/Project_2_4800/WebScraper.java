@@ -1,4 +1,5 @@
 package Project_2_4800;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -17,31 +18,28 @@ import java.util.Scanner;
  * This class is used to retrieve data from a specified website.
  * 
  * @author Rachel Friedman
- * @version 1.0
+ * @version 1.1 This version splits the retrieveDataFromWebsite() into 2 distinct methods; retrieveDataFromWebsite() and saveToFile()
  *
  */
 public class WebScraper {
+
+	Timer timer = new Timer();
+
 	/**
-	 * Retrieves data from website specified in urlAddress and saves it to a csv
-	 * file.
+	 * Retrieves data from website specified in urlAddress file.
 	 * 
 	 * @param urlAddress the website to retrieve data from
-	 * @return column headings and data types from retrieved data.
+	 * @return the content from that website
 	 */
-	public String retrieveDataFromWebsite(String urlAddress) {
-		DecimalFormat decimalFormat = new DecimalFormat("###.###");
-		ArrayList<String> header = new ArrayList<String>();
-		String allFields = "";
+	public byte[] retrieveDataFromWebsite(String urlAddress) {
 		StringBuffer stringBuffer = new StringBuffer();
 		byte[] data = null;
-		File file = new File("data\\data.csv");
-
 		try {
 			URL url = new URL(urlAddress);
+			long start = timer.start();
 			HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-			System.out.println("Retrieving data from covidttracking.com...");
+			System.out.println("Retrieving data from " + urlAddress.substring(0, 25) + "...");
 			InputStream inputStream = connection.getInputStream();
-			long read_start = System.nanoTime();
 			BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
 
 			int i;
@@ -55,10 +53,9 @@ public class WebScraper {
 				}
 			}
 			reader.close();
-			long read_end = System.nanoTime();
-			// System.out.println("Finished reading response in "+
-			// decimalFormat.format((read_end - read_start) / Math.pow(10, 6)) + "
-			// milliseconds");
+			long end = timer.stop();
+			String time = timer.calculateRunningTime(start, end);
+			System.out.println("Data retrieved successfully in " + time + ".");
 		}
 		catch (MalformedURLException e) {
 			e.printStackTrace();
@@ -69,48 +66,59 @@ public class WebScraper {
 		finally {
 			data = stringBuffer.toString().getBytes();
 		}
-		try (FileOutputStream fop = new FileOutputStream(file)) {
+		return data;
+	}
 
+	/**
+	 * Saves data to a specified csv file
+	 * 
+	 * @param filename the name and location of the csv file
+	 * @param data     the data to be saved to the file
+	 * @return the name of each column header along with its data type. This string can then be used in an SQL statement when creating a table.
+	 */
+	public String saveToFile(String filename, byte[] data) {
+		File file = new File(filename);
+		ArrayList<String> columnHeaders = new ArrayList<String>();
+		String columnHeadersWithDataTypes = "";
+		long start = timer.start();
+		try (FileOutputStream fop = new FileOutputStream(file)) {
 			if (!file.exists()) {
 				file.createNewFile();
 			}
-
-			// System.out.println("Initializing write.....");
-			long now = System.nanoTime();
 			fop.write(data);
 			fop.flush();
 			fop.close();
-			// System.out.println("Finished writing CSV in " +
-			// decimalFormat.format((System.nanoTime() - now) / Math.pow(10, 6)) + "
-			// milliseconds!");
-			System.out.println("Data retrieved successfully.");
+			long end = timer.stop();
+			String time = timer.calculateRunningTime(start, end);
+			System.out.println("Data saved successfully in " + time + ".");
 
-			header = getHeaderRow("data\\data.csv");
-			for (int i = 0; i < header.size(); i++) {
+			columnHeaders = getHeaderRow(filename);
+			for (int i = 0; i < columnHeaders.size(); i++) {
 				if (i == 0 || i == 13)
-					header.set(i, header.get(i) + " date");
+					columnHeaders.set(i, columnHeaders.get(i) + " date");
 				else if (i == 1 || i == 12)
-					header.set(i, header.get(i) + " text");
+					columnHeaders.set(i, columnHeaders.get(i) + " text");
 				else
-					header.set(i, header.get(i) + " integer");
-				if (i < header.size() - 1)
-					allFields = allFields + header.get(i) + ", ";
+					columnHeaders.set(i, columnHeaders.get(i) + " integer");
+				if (i < columnHeaders.size() - 1)
+					columnHeadersWithDataTypes = columnHeadersWithDataTypes + columnHeaders.get(i) + ", ";
 				else
-					allFields = allFields + header.get(i);
+					columnHeadersWithDataTypes = columnHeadersWithDataTypes + columnHeaders.get(i);
 			}
-			// allFields = "ID serial primary key not null, " + allFields;
+			// columnHeadersWithDataTypes = "ID serial primary key not null, " +
+			// columnHeadersWithDataTypes;
 		}
 		catch (IOException e) {
 			e.printStackTrace();
 		}
-		return allFields;
+		return columnHeadersWithDataTypes;
 	}
 
 	/**
-	 * Helper method to aid in retrieving headers from csv file
+	 * Helper method to aid in retrieving header row from csv file
 	 * 
 	 * @param filename the csv file with the header row
-	 * @return all fields in header row (data types not included)
+	 * @return all column names in header row (data types not included)
 	 */
 	private static ArrayList<String> getHeaderRow(String filename) {
 		ArrayList<String> header = new ArrayList<String>();

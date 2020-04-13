@@ -1,3 +1,4 @@
+id,ST,state
 1,AL,Alabama
 2,AK,Alaska
 3,AZ,Arizona
@@ -49,3 +50,8 @@
 49,WI,Wisconsin
 50,WY,Wyoming
 51,DC,District of Columbia
+52,AS,American Samoa
+53,GU,Guam
+54,MP,Northern Mariana Islands
+55,PR,Puerto Rico
+56,VI,US Virgin Islands

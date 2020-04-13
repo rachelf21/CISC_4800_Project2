@@ -1,15 +1,11 @@
 package Project_2_4800;
-import java.awt.Desktop;
+
 import java.io.*;
 import java.util.*;
 import java.text.SimpleDateFormat;
 import java.text.DateFormat;
 import java.text.DecimalFormat;
 import java.time.LocalDate;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URISyntaxException;
-import java.net.URL;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -19,54 +15,113 @@ import org.postgresql.copy.CopyManager;
 import org.postgresql.core.BaseConnection;
 
 /**
- * This class implements the CRUD features that are necessary for a relational
- * database.
+ * This class creates a Database object and implements the CRUD features that
+ * are necessary for a relational database. The methods that perform each of the
+ * CRUD tasks are listed below.
  * <p>
- * CREATE: This class implements methods which create a database and methods
- * which create tables. <br>
- * READ: This class implements methods which run SELECT queries. <br>
- * UPDATE: This class implements methods which ALTER user password and ALTERs
- * columns in a table. It also copies rows of data from a csv file into a table. <br>
- * DELETE: This class implements methods which delete records from a table. It
- * also implements a DROP TABLE method.
+ * <b>CREATE</b>
+ * <ul>
+ * <li><code><b>createDatabaseAndUser</b>(String[] db1ConnectionString, String[]
+ * db2ConnectionString)</code></li>
+ * <li><code><b>convertToTable</b>(Connection connection, String tableName, String allFields)
+ * </code></li>
+ * <li><code><b>createTable</b>(Connection connection, String tableName, String columns)</code></li>
+ * </ul>
+ * <p>
+ * <b>READ</b>
+ * <ul>
+ * <li><code><b>selectByState</b>(Connection connection, String tableName, String state)</code></li>
+ * <li><code><b>selectByDate</b>(Connection connection, String tableName, String date_user)
+ * </code></li>
+ * <li><code><b>selectByStateDate</b>(Connection connection, String tableName, String state,
+ * String date_user)</code></li>
+ * </ul>
+ * <p>
+ * <b>UPDATE</b>
+ * <ul>
+ * <li><code><b>alterUser</b>(String db, String username, String password)</code></li>
+ * <li><code><b><a href="#addRecords(java.sql.Connection,java.lang.String,java.lang.String)">addRecords</a></b>(Connection connection, String filename, String tableName)</code></li>
+ * </ul>
+ * <p>
+ * <b>DELETE</b>
+ * <ul>
+ * <li><code><b>dropTable</b>(Connection connection, String tableName)</code></li>
+ * <li><code><b>deleteOldRecords</b>(Connection connection, String tableName, String
+ * specifiedDate)</code></li>
+ * <li><code><b>deleteDatabaseAndUser</b>(Connection conn, String dbName, String user)</code></li>
+ * </ul>
  * 
  * @author Rachel Friedman
- * @version 1.0
+ * @version 1.1 This version contains 2 constructors, allowing for the database
+ *          object to be created with a specified connection string
  */
 public class Database {
-	
-	String[] credentials = new String[3];
-	
-//	public Database(String[] credentials) {
-//		create database object with initial postgres string.
-	// then use that string for createDatabaseAndUSer
-//	}
+
+	public String host = "jdbc:postgresql://localhost:5432/";
+	String dbName = "";
+	String username = "";
+	String password = "";
+	public Connection connection = null;
 
 	/**
-	 * Prompts user for a database name, username and password. Creates database
+	 * Creates a Database object with a specified database name, username and
+	 * password
+	 * 
+	 * @param db   the database name
+	 * @param username the username
+	 * @param password  the password
+	 */
+	public Database(String db, String username, String password) {
+		try {
+			Class.forName("org.postgresql.Driver");
+			connection = DriverManager.getConnection(host + db, username, password);
+		}
+		catch (ClassNotFoundException e) {
+			e.printStackTrace();
+			System.err.println(e.getClass().getName() + ": " + e.getMessage());
+			System.exit(0);
+		}
+		catch (SQLException e) {
+			e.printStackTrace();
+			System.err.println(e.getClass().getName() + ": " + e.getMessage());
+			System.exit(0);
+		}
+		System.out.println("\nConnected to database " + db + " successfully");
+	}
+
+	/**
+	 * Creates an empty database object with no set parameters
+	 */
+	public Database() {
+	}
+
+	/**
+	 * Retrieves the database connection
+	 * 
+	 * @return the database connection
+	 */
+	public Connection getConnection() {
+		return connection;
+	}
+
+	/**
+	 * Creates database
 	 * with name specified. Creates user with user and password as specified. Grants
 	 * user all privileges for newly created database.
 	 * 
-	 * @return an array with 3 Strings: database name, username, password
+	 * @param db1ConnectionString initial connection to default database
+	 * @param db2ConnectionString connection to new database. Includes database
+	 *                            name, username and password.
 	 */
-	public String[] createDatabaseAndUser() {
-		String[] credentials = new String[3];
-		System.out.println("\nDATABASE SETUP");
-		Scanner console2 = new Scanner(System.in);
-		System.out.print("Select a username: ");
-		credentials[0] = console2.next();
-		System.out.print("Select a password: ");
-		credentials[1] = console2.next();
-		System.out.print("Select a name for your database: ");
-		credentials[2] = console2.next();
-		String username = credentials[0];
-		String password = credentials[1];
-		String dbName = credentials[2];
+	public void createDatabaseAndUser(String[] db1ConnectionString, String[] db2ConnectionString) {
+		String username = db2ConnectionString[0];
+		String password = db2ConnectionString[1];
+		String dbName = db2ConnectionString[2];
 		try {
-			Connection Conn = DriverManager.getConnection("jdbc:postgresql://localhost:5432/", "postgres", "postgres");
+			Connection Conn = DriverManager.getConnection(db1ConnectionString[0], db1ConnectionString[1],
+					db1ConnectionString[2]);
 			Statement Stmt = Conn.createStatement();
 			try {
-
 				Stmt.execute("DROP DATABASE IF EXISTS " + dbName + ";");
 				Stmt.execute("CREATE DATABASE " + dbName + ";");
 				Stmt.execute("CREATE USER " + username + " PASSWORD \'" + password + "\';");
@@ -77,13 +132,30 @@ public class Database {
 			}
 			catch (SQLException e) {
 				System.out.println("User already exists. Changing password to new password instead");
-				Stmt.execute("ALTER USER " + username + " PASSWORD \'" + password + "\';");
+				alterUser(db1ConnectionString[0], username, password);
 			}
 		}
 		catch (SQLException e) {
 			System.err.println("createDatabaseAndUser" + e.getClass().getName() + ": " + e.getMessage());
 		}
-		return credentials;
+	}
+
+	/**
+	 * Alters password for specified user with given password
+	 * 
+	 * @param db       the initial database for creating this user
+	 * @param username the user whose password is to be changed
+	 * @param password the new password for the given user
+	 */
+	public void alterUser(String db, String username, String password) {
+		try {
+			Connection Conn = DriverManager.getConnection(db, username, password);
+			Statement Stmt = Conn.createStatement();
+			Stmt.execute("ALTER USER " + username + " PASSWORD \'" + password + "\';");
+		}
+		catch (SQLException e) {
+			System.out.println("Unable to change user password.");
+		}
 	}
 
 	/**
@@ -95,7 +167,7 @@ public class Database {
 	 * @return the database connection
 	 */
 	public Connection connectToDatabase(String db, String username, String password) {
-		Connection connection = null;
+		// Connection connection = null;
 		try {
 			Class.forName("org.postgresql.Driver");
 			connection = DriverManager.getConnection("jdbc:postgresql://localhost:5432/" + db, username, password);
@@ -196,13 +268,12 @@ public class Database {
 	 * @param tableName  the name of the table to add the records to
 	 */
 	public void addRecords(Connection connection, String filename, String tableName) {
-		String path = "data\\";
 		try {
 			String sql = "copy " + tableName + " FROM stdin DELIMITER ',' CSV header";
 			BaseConnection con = (BaseConnection) connection;
 			CopyManager mgr = new CopyManager(con);
 			try {
-				Reader in = new BufferedReader(new FileReader(new File(path + filename)));
+				Reader in = new BufferedReader(new FileReader(new File(filename)));
 				long rowsaffected = mgr.copyIn(sql, in);
 				System.out.println("Records imported for " + tableName + ": " + rowsaffected);
 			}
@@ -216,18 +287,22 @@ public class Database {
 	}
 
 	/**
-	 * Deletes rows from table tableName
+	 * Deletes records from table tableName where date is before given date
 	 * 
-	 * @param connection the connection to the database
-	 * @param tableName  the table from which to delete the rows
+	 * @param connection    the connection to the database
+	 * @param tableName     the table from which to delete the rows
+	 * @param specifiedDate specifies the date from which to delete all records.
+	 *                      Records on this date are not deleted.
 	 */
-	public void deleteRecords(Connection connection, String tableName) {
+	public void deleteOldRecords(Connection connection, String tableName, String specifiedDate) {
 		try {
+			String date = "\'2020-" + specifiedDate + "\'";
 			Statement stmt = connection.createStatement();
-			String sql = "DELETE FROM " + tableName + " WHERE date < \'2020-03-15\'; ";
+			// String sql = "DELETE FROM " + tableName + " WHERE date < \'2020-03-15\'; ";
+			String sql = "DELETE FROM " + tableName + " WHERE date < " + date + "; ";
 			stmt.executeUpdate(sql);
 			stmt.close();
-			System.out.println("Deleted all data prior to March 15");
+			System.out.println("Deleted all data prior to 2020-" + specifiedDate);
 		}
 		catch (Exception e) {
 			System.err.println(e.getClass().getName() + ": " + e.getMessage());
@@ -410,65 +485,32 @@ public class Database {
 
 	/**
 	 * Creates a HashMap of the full name of the abbreviation of each state.<br>
-	 * This is used when checking to see if valid state was entered. <br>
+	 * This is used when checking to see if valid state was entered. 
 	 * This is also used when spelling out full name of state in place of
 	 * abbreviation.
 	 * 
 	 * @return a Hashmap of the abbreviations and full names of each of the 50
-	 *         states.
+	 *         states and 6 territories.
 	 */
 	public HashMap<String, String> createListOfStates() {
 		HashMap<String, String> statesList = new HashMap<String, String>();
-		statesList.put("AL", "Alabama");
-		statesList.put("AK", "Alaska");
-		statesList.put("AZ", "Arizona");
-		statesList.put("AR", "Arkansas");
-		statesList.put("CA", "California");
-		statesList.put("CO", "Colorado");
-		statesList.put("CT", "Connecticut");
-		statesList.put("DE", "Delaware");
-		statesList.put("FL", "Florida");
-		statesList.put("GA", "Georgia");
-		statesList.put("HI", "Hawaii");
-		statesList.put("ID", "Idaho");
-		statesList.put("IL", "Illinois");
-		statesList.put("IN", "Indiana");
-		statesList.put("IA", "Iowa");
-		statesList.put("KS", "Kansas");
-		statesList.put("KY", "Kentucky");
-		statesList.put("LA", "Louisiana");
-		statesList.put("ME", "Maine");
-		statesList.put("MD", "Maryland");
-		statesList.put("MA", "Massachusetts");
-		statesList.put("MI", "Michigan");
-		statesList.put("MN", "Minnesota");
-		statesList.put("MS", "Mississippi");
-		statesList.put("MO", "Missouri");
-		statesList.put("MT", "Montana");
-		statesList.put("NE", "Nebraska");
-		statesList.put("NV", "Nevada");
-		statesList.put("NH", "New_Hampshire");
-		statesList.put("NJ", "New_Jersey");
-		statesList.put("NM", "New_Mexico");
-		statesList.put("NY", "New_York");
-		statesList.put("NC", "North_Carolina");
-		statesList.put("ND", "North_Dakota");
-		statesList.put("OH", "Ohio");
-		statesList.put("OK", "Oklahoma");
-		statesList.put("OR", "Oregon");
-		statesList.put("PA", "Pennsylvania");
-		statesList.put("RI", "Rhode_Island");
-		statesList.put("SC", "South_Carolina");
-		statesList.put("SD", "South_Dakota");
-		statesList.put("TN", "Tennessee");
-		statesList.put("TX", "Texas");
-		statesList.put("UT", "Utah");
-		statesList.put("VT", "Vermont");
-		statesList.put("VA", "Virginia");
-		statesList.put("WA", "Washington");
-		statesList.put("WV", "West_Virginia");
-		statesList.put("WI", "Wisconsin");
-		statesList.put("WY", "Wyoming");
+		try {
+			Statement stmt = connection.createStatement();
+			String sql = "SELECT ST, state FROM states ORDER BY ST asc;";
+			ResultSet rs = stmt.executeQuery(sql);
+			while (rs.next()) {
+				String st = rs.getString("st");
+				String state = rs.getString("state");
+				state = state.replace(" ", "_");
+				statesList.put(st, state);
+			}
+			rs.close();
+			stmt.close();
+		}
+		catch (Exception e) {
+			System.out.println("Oops. Invalid date format. Please try again.");
+			System.err.println("createListOfStates " + e.getClass().getName() + ": " + e.getMessage());
+		}
 		return statesList;
 	}
 }

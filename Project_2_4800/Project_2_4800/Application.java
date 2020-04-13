@@ -1,4 +1,5 @@
 package Project_2_4800;
+
 import java.util.HashMap;
 import java.util.InputMismatchException;
 import java.util.Scanner;
@@ -6,9 +7,9 @@ import java.util.regex.*;
 import java.sql.Connection;
 
 /**
- * This runs the complete program. <br>
+ * This class launches the program. <br>
  * This program downloads covid19 tracking information for each of the fifty
- * states in the United States, from
+ * states and six territories in the United States, from
  * <a href="https://covidtracking.com/api" target="_blank">
  * covidtracking.com</a>. It then creates and accesses a PostgreSQL database,
  * based on the following user specifications: database name, username and
@@ -21,41 +22,89 @@ import java.sql.Connection;
  * remain saved as html files in an output folder.
  * 
  * @author Rachel Friedman
- * @version 1.0
+ * @version 1.1 This version tests the constructor which creates a database object with a specified connection string
  */
 public class Application {
 	static int exit = 1;
-
+/**
+ * Launches the program
+ * @param args not used
+ */
 	public static void main(String[] args) {
-
+		String[] initialConnection = { "jdbc:postgresql://localhost:5432/", "postgres", "postgres" };
 		System.out.println("--COVID19 DATABASE--");
 		String tableName = "covidData";
 		WebScraper ws = new WebScraper();
-		String allFields = ws.retrieveDataFromWebsite("https://covidtracking.com/api/v1/states/daily.csv");
-		Database db = new Database();
+		String address = "https://covidtracking.com/api/v1/states/daily.csv";
+		String filename = "data\\data.csv";
+		byte[] content = ws.retrieveDataFromWebsite(address);
+		String allFields = ws.saveToFile(filename, content);
 		HTMLWriter htmlWriter = new HTMLWriter();
-		String[] credentials = db.createDatabaseAndUser();
-		Connection connection = db.connectToDatabase(credentials[2], credentials[0], credentials[1]);
-		db.convertToTable(connection, tableName, allFields);
-		db.addRecords(connection, "data.csv", tableName);
-		db.deleteRecords(connection, tableName);
-		db.convertToTable(connection, "states", "id integer primary key, ST text, state text");
-		db.addRecords(connection, "states.csv", "states");
-		db.createTable(connection, "positive", "date, state, positive");
-		db.createTable(connection, "hospitalizations", "date, state, hospitalizedcumulative");
-		db.createTable(connection, "death", "date, state, death");
-		viewData(connection, db, htmlWriter, tableName); // consider changing this to include in this file
+		
+		Database db2 = new Database("postgres",initialConnection[1],initialConnection[2] );
+		String[] credentials = promptForCredentials();
+		db2.createDatabaseAndUser(initialConnection, credentials);
+		Connection connection = db2.connectToDatabase(credentials[0],credentials[1],credentials[2]);
+		//Connection connection = db2.getConnection();
+		db2.convertToTable(connection, tableName, allFields);
+		db2.addRecords(connection, "data\\data.csv", tableName);
+		db2.deleteOldRecords(connection, tableName,"03-15");
+		db2.convertToTable(connection, "states", "id integer primary key, ST text, state text");
+		db2.addRecords(connection, "data\\states.csv", "states");
+		db2.createTable(connection, "positive", "date, state, positive");
+		db2.createTable(connection, "hospitalizations", "date, state, hospitalizedcumulative");
+		db2.createTable(connection, "death", "date, state, death");
+		viewData(connection, db2, htmlWriter, tableName); // consider changing this to include in this file
 
 		if (exit == 0) {
-			db.deleteDatabaseAndUser(connection, credentials[2], credentials[0]);
+			db2.deleteDatabaseAndUser(connection, credentials[2], credentials[0]);
 			System.gc();
 			System.out.println("Exiting Program... Goodbye.");
 			System.exit(0);
 		}
+		
+//		Database db = new Database();
+//		String[] credentials = promptForCredentials();
+//		db.createDatabaseAndUser(initialConnection, credentials);
+//		Connection connection = db.connectToDatabase(credentials[2], credentials[0], credentials[1]);
+//		db.convertToTable(connection, tableName, allFields);
+//		db.addRecords(connection, "data\\data.csv", tableName);
+//		db.deleteOldRecords(connection, tableName,"03-15");
+//		db.convertToTable(connection, "states", "id integer primary key, ST text, state text");
+//		db.addRecords(connection, "data\\states.csv", "states");
+//		db.createTable(connection, "positive", "date, state, positive");
+//		db.createTable(connection, "hospitalizations", "date, state, hospitalizedcumulative");
+//		db.createTable(connection, "death", "date, state, death");
+//		viewData(connection, db, htmlWriter, tableName); // consider changing this to include in this file
+//
+//		if (exit == 0) {
+//			db.deleteDatabaseAndUser(connection, credentials[2], credentials[0]);
+//			System.gc();
+//			System.out.println("Exiting Program... Goodbye.");
+//			System.exit(0);
+//		}
 	}
 
 	/**
-	 * Prompts the user with a menu of different queries that can be performed on
+	 * Prompts the user to select a username, password and name for database
+	 * 
+	 * @return the username, password, and name for database
+	 */
+	public static String[] promptForCredentials() {
+		String[] credentials = new String[3];
+		System.out.println("\nDATABASE SETUP");
+		Scanner console = new Scanner(System.in);
+		System.out.print("Select a username: ");
+		credentials[0] = console.next();
+		System.out.print("Select a password: ");
+		credentials[1] = console.next();
+		System.out.print("Select a name for your database: ");
+		credentials[2] = console.next();
+		return credentials;
+	}
+
+	/**
+	 * Prompts the user to select from a menu of different queries that can be performed on
 	 * the database. <br>
 	 * Calls upon the relevant method after user selects one of the options
 	 * presented.
