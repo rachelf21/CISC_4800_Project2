@@ -18,15 +18,31 @@ import org.postgresql.copy.CopyManager;
 import org.postgresql.core.BaseConnection;
 
 /**
- * This program creates and accesses a PostgreSQL database with Covid-19
- * data from put website address here. It then queries blah blah blah.
+ * This program downloads covid19 tracking information for each of the fifty
+ * states in the United States, from
+ * <a href="https://covidtracking.com/api" target="_blank">
+ * covidtracking.com</a>. It then creates and accesses a PostgreSQL database,
+ * based on the following user specifications: database name, username and
+ * password. The user is granted full access to the database. The following
+ * tables are then created: states, positive, hospitalizations, and deaths. The
+ * user is then presented with options to query the database and to display data
+ * by state, date, or both state and date. The results are then output as an
+ * HTML document, formatted with DataTable in Bootstrap 4. Upon completion, the
+ * program deletes the session's database and user. The result of the queries
+ * remain saved as html files in an output folder.
+ * 
  * @author Rachel Friedman
  * @version 1.0
  */
 public class Database {
 
-	static int exit=1;
-	
+	static int exit = 1;
+
+	/**
+	 * launching point of program
+	 * 
+	 * @param args not used
+	 */
 	public static void main(String[] args) {
 		String tableName = "covid_data";
 		System.out.println("--COVID19 DATABASE--");
@@ -42,7 +58,7 @@ public class Database {
 		createTable(connection, "hospitalizations", "date, state, hospitalizedcumulative");
 		createTable(connection, "death", "date, state, death");
 		runQueries(connection, tableName);
-		if(exit==0) {
+		if (exit == 0) {
 			deleteDatabaseAndUser(connection, credentials[2], credentials[0]);
 			System.gc();
 			System.out.println("Exiting Program... Goodbye.");
@@ -50,11 +66,15 @@ public class Database {
 		}
 	}// main
 
-/**
- * Retrieves latest data from covidtracking.com
- * Saves all data to data.csv in local directory 
- * @return all fields from header row with data types necessary for SQL table. This string is used when creating the table.
- */
+	/**
+	 * Retrieves latest data from covidtracking.com. <br>
+	 * Saves all data to data/data.csv in local directory.
+	 * 
+	 * @return a String with all the fields from the header row with data types,
+	 *         separated by a comma. <br>
+	 *         This string can be used in a CREATE TABLE SQL statement for creating
+	 *         the columns in the table.
+	 */
 	public static String retrieveDataFromWebsite() {
 		DecimalFormat decimalFormat = new DecimalFormat("###.###");
 		ArrayList<String> header = new ArrayList<String>();
@@ -135,11 +155,12 @@ public class Database {
 		return allFields;
 	}
 
-/**
- * retrieves header row from csv file
- * @param filename the csv file with headings
- * @return all fields in header row
- */
+	/**
+	 * Retrieves the header row from the csv file
+	 * 
+	 * @param filename the csv file with the header row
+	 * @return all fields in header row
+	 */
 	private static ArrayList<String> getHeaderRow(String filename) {
 		ArrayList<String> header = new ArrayList<String>();
 		try {
@@ -163,13 +184,13 @@ public class Database {
 		return header;
 	}
 
-/**
- * prompts user for database name, username and password
- * creates database with name specified
- * creates user with user and password as specified
- * grants user all privileges for newly created database
- * @return database, username, password
- */
+	/**
+	 * Prompts user for a database name, username and password. Creates database
+	 * with name specified. Creates user with user and password as specified. Grants
+	 * user all privileges for newly created database.
+	 * 
+	 * @return an array with 3 Strings: database name, username, password
+	 */
 	public static String[] createDatabaseAndUser() {
 		String[] credentials = new String[3];
 		System.out.println("\nDATABASE SETUP");
@@ -207,14 +228,26 @@ public class Database {
 		return credentials;
 	}
 
-//***************CONNECT TO DATABASE***************
+	/**
+	 * Connects to database db with specified username and password
+	 * 
+	 * @param db       the database to connect to
+	 * @param username the username to connect with
+	 * @param password the password to connect with
+	 * @return the database connection
+	 */
 	public static Connection connectToDatabase(String db, String username, String password) {
 		Connection connection = null;
 		try {
 			Class.forName("org.postgresql.Driver");
 			connection = DriverManager.getConnection("jdbc:postgresql://localhost:5432/" + db, username, password);
 		}
-		catch (Exception e) {
+		catch (ClassNotFoundException e) {
+			e.printStackTrace();
+			System.err.println(e.getClass().getName() + ": " + e.getMessage());
+			System.exit(0);
+		}
+		catch (SQLException e) {
 			e.printStackTrace();
 			System.err.println(e.getClass().getName() + ": " + e.getMessage());
 			System.exit(0);
@@ -223,7 +256,12 @@ public class Database {
 		return connection;
 	}
 
-//***************DROP TABLE***************
+	/**
+	 * Drops the specified table.
+	 * 
+	 * @param connection the connection to the current database
+	 * @param tableName  the table to be dropped
+	 */
 	public static void dropTable(Connection connection, String tableName) {
 		try {
 			Statement stmt = connection.createStatement();
@@ -232,13 +270,20 @@ public class Database {
 			stmt.close();
 			// System.out.println("Dropped table " + tableName);
 		}
-		catch (Exception e) {
+		catch (SQLException e) {
 			System.err.println("Error dropping table " + e.getClass().getName() + ": " + e.getMessage());
 			System.exit(0);
 		}
 	}
 
-//***************CONVERT TO TABLE***************
+	/**
+	 * Creates a table specified by tableName, using allFields from a csv file as
+	 * columns
+	 * 
+	 * @param connection the connection to the current database
+	 * @param tableName  the name of the table to be created
+	 * @param allFields  the column names and data types
+	 */
 	public static void convertToTable(Connection connection, String tableName, String allFields) {
 		try {
 			Statement stmt = connection.createStatement();
@@ -247,36 +292,51 @@ public class Database {
 			sql = "CREATE TABLE IF NOT EXISTS " + tableName + "(" + allFields + "); ";
 			stmt.executeUpdate(sql);
 			stmt.close();
-			//System.out.println("Created table: " + tableName);
+			// System.out.println("Created table: " + tableName);
 		}
-		catch (Exception e) {
+		catch (SQLException e) {
 			System.err.println(e.getClass().getName() + ": " + e.getMessage());
 			System.exit(0);
 		}
 	}
 
-//***************CREATE TABLE***************
-		public static void createTable(Connection connection, String tableName, String columns) {
-			try {
-				Statement stmt = connection.createStatement();
-				String sql = "DROP TABLE IF EXISTS " + tableName + ";";
-				stmt.executeUpdate(sql);
-				sql = "CREATE TABLE IF NOT EXISTS " + tableName + " AS(SELECT "+ columns +" FROM covid_data); ";
-				stmt.executeUpdate(sql);
-				sql = "ALTER TABLE  " + tableName + " ADD COLUMN ID serial PRIMARY KEY;"; 
-				stmt.executeUpdate(sql);
-				sql = "ALTER TABLE  " + tableName + " RENAME state to ST;"; 
-				stmt.executeUpdate(sql);				
-				System.out.println("Created table: " + tableName);
-				stmt.close();
-			}
-			catch (Exception e) {
-				System.err.println("CREATE TABLE " + e.getClass().getName() + ": " + e.getMessage());
-				System.exit(0);
-			}
+	/**
+	 * Creates a table in this database with tableName as table and columns as
+	 * specified. <br>
+	 * This method also adds an ID column as the primary key. <br>
+	 * This method also alters the column names.
+	 * 
+	 * @param connection the connection to the current database
+	 * @param tableName  the name of the table to be created
+	 * @param columns    the column names and data types
+	 */
+	public static void createTable(Connection connection, String tableName, String columns) {
+		try {
+			Statement stmt = connection.createStatement();
+			String sql = "DROP TABLE IF EXISTS " + tableName + ";";
+			stmt.executeUpdate(sql);
+			sql = "CREATE TABLE IF NOT EXISTS " + tableName + " AS(SELECT " + columns + " FROM covid_data); ";
+			stmt.executeUpdate(sql);
+			sql = "ALTER TABLE  " + tableName + " ADD COLUMN ID serial PRIMARY KEY;";
+			stmt.executeUpdate(sql);
+			sql = "ALTER TABLE  " + tableName + " RENAME state to ST;";
+			stmt.executeUpdate(sql);
+			System.out.println("Created table: " + tableName);
+			stmt.close();
 		}
+		catch (Exception e) {
+			System.err.println("CREATE TABLE " + e.getClass().getName() + ": " + e.getMessage());
+			System.exit(0);
+		}
+	}
 
-//***************ADD RECORDS***************
+	/**
+	 * Adds record to specified table by copying data from specified file.
+	 * 
+	 * @param connection the database connection
+	 * @param filename   the csv file from which to copy the data
+	 * @param tableName  the name of the table to add the records to
+	 */
 	public static void addRecords(Connection connection, String filename, String tableName) {
 		String path = "data\\";
 		try {
@@ -284,9 +344,9 @@ public class Database {
 			BaseConnection con = (BaseConnection) connection;
 			CopyManager mgr = new CopyManager(con);
 			try {
-				Reader in = new BufferedReader(new FileReader(new File(path+filename)));
+				Reader in = new BufferedReader(new FileReader(new File(path + filename)));
 				long rowsaffected = mgr.copyIn(sql, in);
-				System.out.println("Records imported for " + tableName + ": " +rowsaffected);
+				System.out.println("Records imported for " + tableName + ": " + rowsaffected);
 			}
 			catch (FileNotFoundException e) {
 				System.err.println(e.getClass().getName() + ": " + "File " + filename + " not found");
@@ -297,7 +357,13 @@ public class Database {
 		}
 	}
 
-//***************DELETE RECORDS***************
+	/**
+	 * Deletes rows from table tableName
+	 * 
+	 * @param connection the connection to the database
+	 * @param tableName  the table from which to delete the rows
+	 */
+
 	public static void deleteRecords(Connection connection, String tableName) {
 		try {
 			Statement stmt = connection.createStatement();
@@ -312,7 +378,14 @@ public class Database {
 		}
 	}
 
-//***************DELETE DATABASE AND USER***************	
+	/**
+	 * Deletes this session's database and user. This method is typically used to
+	 * perform cleanup when exiting a program.
+	 * 
+	 * @param conn   the connection to the database
+	 * @param dbName the database to be deleted
+	 * @param user   the user to be deleted
+	 */
 	public static void deleteDatabaseAndUser(Connection conn, String dbName, String user) {
 		try {
 			conn.close();
@@ -323,12 +396,21 @@ public class Database {
 			System.out.println("\nDeleting database and user for current session... Done.");
 		}
 		catch (SQLException e) {
-			//System.err.println("dropDatabase " + e.getClass().getName() + ": " + e.getMessage());
+			// System.err.println("dropDatabase " + e.getClass().getName() + ": " +
+			// e.getMessage());
 			System.out.println("Unable to delete current session user and database. Delete manually.");
 		}
 	}
 
-//***************RUN QUERIES***************
+	/**
+	 * Prompts the user with a menu of different queries that can be performed on
+	 * the database. <br>
+	 * Calls upon the relevant method after user selects one of the options
+	 * presented.
+	 * 
+	 * @param connection the connection to the database
+	 * @param tableName  the table to be queried
+	 */
 	public static void runQueries(Connection connection, String tableName) {
 		Scanner console = new Scanner(System.in);
 		HashMap<String, String> hm = createListOfStates();
@@ -349,7 +431,7 @@ public class Database {
 				String htmlResults = "";
 				switch (selection) {
 				case 0:
-					exit=0;
+					exit = 0;
 					break;
 				case 1:
 					System.out.print("\nEnter state: ");
@@ -360,7 +442,7 @@ public class Database {
 						state = console.next().toUpperCase();
 					}
 					htmlResults = selectByState(connection, tableName, state);
-					createHTML(htmlResults, hm.get(state),1);
+					createHTML(htmlResults, hm.get(state), 1);
 					break;
 				case 2:
 					System.out.print("\nEnter date in this format mm-dd:  ");
@@ -381,7 +463,7 @@ public class Database {
 					date = console.next();
 					try {
 						htmlResults = selectByStateDate(connection, tableName, state, date);
-						createHTML(htmlResults, hm.get(state) + " " + date,3);
+						createHTML(htmlResults, hm.get(state) + " " + date, 3);
 					}
 					catch (Exception e) {
 						System.out.println("Invalid date entry");
@@ -401,7 +483,14 @@ public class Database {
 		console.close();
 	}
 
-//***************SELECT BY STATE ***************
+	/**
+	 * Performs a "select by state" query on table specified
+	 * 
+	 * @param connection the connection to the database
+	 * @param tableName  the table to be queried
+	 * @param state      the specific state to fetch data for
+	 * @return the results of the query formatted in an html table
+	 */
 	public static String selectByState(Connection connection, String tableName, String state) {
 		String htmlResults = "";
 		String pattern = "MMMM d";
@@ -440,7 +529,14 @@ public class Database {
 		return htmlResults;
 	}
 
-//***************SELECT BY DATE ***************
+	/**
+	 * Performs a "select by date" query on table specified
+	 * 
+	 * @param connection the connection to the database
+	 * @param tableName  the table to be queried
+	 * @param date_user  the specific date to fetch data for
+	 * @return the results of the query formatted in an html table
+	 */
 	public static String selectByDate(Connection connection, String tableName, String date_user) {
 		String htmlResults = "";
 		String pattern = "MMMM d";
@@ -484,7 +580,16 @@ public class Database {
 		return htmlResults;
 	}
 
-//***************SELECT BY STATE AND DATE ***************
+	/**
+	 * Performs a "select by state and by date" query on table specified
+	 * 
+	 * @param connection the connection to the database
+	 * @param tableName  the table to be queried
+	 * @param state      the specific state to fetch data for
+	 * @param date_user  the specific date to fetch data for
+	 * @return the results of the query formatted in an html table
+	 */
+
 	public static String selectByStateDate(Connection connection, String tableName, String state, String date_user) {
 		String htmlResults = "";
 		String pattern = "MMMM d";
@@ -528,9 +633,18 @@ public class Database {
 		return htmlResults;
 	}
 
-//***************CREATE HTML ***************
+	/**
+	 * Creates the HTML page of the query results, using DataTable bootstrap
+	 * 
+	 * @param htmlResults the results of the query formatted in in html table
+	 * @param selection   the date and/or state that was used as a condition for the
+	 *                    query
+	 * @param option      the number of the corresponding query that user selected
+	 *                    at the prompt
+	 * 
+	 */
 	public static void createHTML(String htmlResults, String selection, int option) {
-		String colHeader="";
+		String colHeader = "";
 		switch (option) {
 		case 1:
 			colHeader = "            <th>State</th>\r\n            <th>Date</th>\r\n";
@@ -543,57 +657,36 @@ public class Database {
 			break;
 		default:
 			colHeader = "            <th>State</th>\r\n            <th>Date</th>\r\n";
-			break;				
+			break;
 		}
-		String htmlFile = "<!DOCTYPE html>\r\n" + 
-				"<html lang=\"en\">\r\n" + 
-				"  <head>\r\n" + 
-				"    <meta charset=\"UTF-8\" />\r\n" + 
-				"    <!--meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" /-->\r\n" + 
-				"    <title>" + selection + " Results</title>\r\n" + 
-				"    <link rel=\"stylesheet\" href=\"https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css\" />\r\n" + 
-				"    <link rel=\"stylesheet\" href=\"https://cdn.datatables.net/1.10.19/css/dataTables.bootstrap4.min.css\" />\r\n" + 
-				"  </head>\r\n" + 
-				"  <body>\r\n" + 
-				"    <div class=\"container mb-5 mt-5\">\r\n" + 
-				"\r\n <h1 align=\"center\"> Results from Query for " + selection + "</H1><HR>" +
-				"      <table class=\"table table-striped table-bordered text-center\" style=\"width: 100%;\" id=\"mydatatable\">\r\n" + 
-				"        <thead>\r\n" + 
-				"          <tr>\r\n" + colHeader + 
-				"            <th>Positive Cases</th>\r\n" + 
-				"            <th>Hospitalizations</th>\r\n" + 
-				"            <th>Deaths</th>\r\n" + 
-				"          </tr>\r\n" + 
-				"        </thead>\r\n" + 
-				"        <tbody>" + htmlResults + "        </tbody>\r\n" + 
-						"      </table>\r\n" + 
-						"    </div>\r\n" + 
-						"\r\n" + 
-						"    <script src=\"https://code.jquery.com/jquery-3.3.1.min.js\"></script>\r\n" + 
-						"    <script src=\"https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js\"></script>\r\n" + 
-						"    <script src=\"https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js\"></script>\r\n" + 
-						"\r\n" + 
-						"    <script src=\"https://cdn.datatables.net/1.10.19/js/jquery.dataTables.min.js\"></script>\r\n" + 
-						"    <script src=\"https://cdn.datatables.net/1.10.19/js/dataTables.bootstrap4.min.js\"></script>\r\n" + 
-						"\r\n" + 
-						"    <script>\r\n" + 
-						"      $(\"#mydatatable\").DataTable({\r\n" + 
-						"        pageLength: 10,\r\n" + 
-						"        filter: true,\r\n" + 
-						"        deferRender: true,\r\n" + 
-						"        scrollY: 600,\r\n" + 
-						"        scrollCollapse: true,\r\n" + 
-						"        scroller: true,\r\n" + 
-						"        ordering: true,\r\n" + 
-						"        select: true,\r\n" + 
-						"      });\r\n" + 
-						"    </script>\r\n" + 
-						"  </body>\r\n" + 
-						"</html>";
+		String htmlFile = "<!DOCTYPE html>\r\n" + "<html lang=\"en\">\r\n" + "  <head>\r\n"
+				+ "    <meta charset=\"UTF-8\" />\r\n"
+				+ "    <!--meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" /-->\r\n"
+				+ "    <title>" + selection + " Results</title>\r\n"
+				+ "    <link rel=\"stylesheet\" href=\"https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css\" />\r\n"
+				+ "    <link rel=\"stylesheet\" href=\"https://cdn.datatables.net/1.10.19/css/dataTables.bootstrap4.min.css\" />\r\n"
+				+ "  </head>\r\n" + "  <body>\r\n" + "    <div class=\"container mb-5 mt-5\">\r\n"
+				+ "\r\n <h1 align=\"center\"> Results from Query for " + selection + "</H1><HR>"
+				+ "      <table class=\"table table-striped table-bordered text-center\" style=\"width: 100%;\" id=\"mydatatable\">\r\n"
+				+ "        <thead>\r\n" + "          <tr>\r\n" + colHeader + "            <th>Positive Cases</th>\r\n"
+				+ "            <th>Hospitalizations</th>\r\n" + "            <th>Deaths</th>\r\n"
+				+ "          </tr>\r\n" + "        </thead>\r\n" + "        <tbody>" + htmlResults
+				+ "        </tbody>\r\n" + "      </table>\r\n" + "    </div>\r\n" + "\r\n"
+				+ "    <script src=\"https://code.jquery.com/jquery-3.3.1.min.js\"></script>\r\n"
+				+ "    <script src=\"https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js\"></script>\r\n"
+				+ "    <script src=\"https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js\"></script>\r\n"
+				+ "\r\n"
+				+ "    <script src=\"https://cdn.datatables.net/1.10.19/js/jquery.dataTables.min.js\"></script>\r\n"
+				+ "    <script src=\"https://cdn.datatables.net/1.10.19/js/dataTables.bootstrap4.min.js\"></script>\r\n"
+				+ "\r\n" + "    <script>\r\n" + "      $(\"#mydatatable\").DataTable({\r\n"
+				+ "        pageLength: 10,\r\n" + "        filter: true,\r\n" + "        deferRender: true,\r\n"
+				+ "        scrollY: 600,\r\n" + "        scrollCollapse: true,\r\n" + "        scroller: true,\r\n"
+				+ "        ordering: true,\r\n" + "        select: true,\r\n" + "      });\r\n" + "    </script>\r\n"
+				+ "  </body>\r\n" + "</html>";
 
 		try {
 			String path = "output/";
-			File file2 = new File(path+selection + "_data.html");
+			File file2 = new File(path + selection + "_data.html");
 			FileOutputStream fop = new FileOutputStream(file2);
 			if (!file2.exists()) {
 				file2.createNewFile();
@@ -606,19 +699,20 @@ public class Database {
 			System.out.println("Done!");
 			Desktop desktop = Desktop.getDesktop();
 			java.net.URI url;
-			
+
 			try {
-				url = new java.net.URI("C:/Users/Rachel/git/CISC4800_Project2/Project_2_4800/output/"+selection + "_data.html");
+				url = new java.net.URI(
+						"C:/Users/Rachel/git/CISC4800_Project2/Project_2_4800/output/" + selection + "_data.html");
 				desktop.browse(url);
-				}
+			}
 			catch (URISyntaxException e) {
 				System.out.println("Navigate to folder to open html file.");
 				e.printStackTrace();
 			}
-			
+
 		}
 		catch (FileNotFoundException e) {
-			System.out.println("file not found exception cant write date to file");
+			System.out.println("file not found exception can't write date to file");
 			System.exit(0);
 		}
 		catch (IOException e) {
@@ -626,8 +720,16 @@ public class Database {
 		}
 	}
 
-//***************CREATE LIST OF STATES ***************
-	public static HashMap<String, String> createListOfStates() {
+	/**
+	 * Creates a HashMap of the full name of the abbreviation of each state.<br>
+	 * This is used when checking to see if valid state was entered. <br>
+	 * This is also used when spelling out full name of state in place of
+	 * abbreviation.
+	 * 
+	 * @return a Hashmap of the abbreviations and full names of each of the 50
+	 *         states.
+	 */
+	private static HashMap<String, String> createListOfStates() {
 		HashMap<String, String> statesList = new HashMap<String, String>();
 		statesList.put("AL", "Alabama");
 		statesList.put("AK", "Alaska");
@@ -681,5 +783,4 @@ public class Database {
 		statesList.put("WY", "Wyoming");
 		return statesList;
 	}
-
-}// class
+}
