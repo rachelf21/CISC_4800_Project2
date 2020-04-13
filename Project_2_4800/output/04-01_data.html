@@ -3,23 +3,24 @@
   <head>
     <meta charset="UTF-8" />
     <!--meta name="viewport" content="width=device-width, initial-scale=1.0" /-->
-    <title>04-01 Results </title>
+    <title>04-01 Results</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdn.datatables.net/1.10.19/css/dataTables.bootstrap4.min.css" />
   </head>
   <body>
- <h1 align="center"> Results from Query for 04-01</H1>    <div class="container mb-5 mt-5">
-      <table class="table table-striped table-bordered" style="width: 100%;" id="mydatatable">
+    <div class="container mb-5 mt-5">
+
+ <h1 align="center"> Results from Query for 04-01</H1><HR>      <table class="table table-striped table-bordered text-center" style="width: 100%;" id="mydatatable">
         <thead>
           <tr>
-            <th>State</th>
             <th>Date</th>
+            <th>State</th>
             <th>Positive Cases</th>
-<th>Hospitalizations</th>
-<th>Deaths</th>
+            <th>Hospitalizations</th>
+            <th>Deaths</th>
           </tr>
         </thead>
-        <tbody> 
+        <tbody>
 <tr> <td> April 1</td> <td>NY</td> <td> 83,712</td> <td> 18,368</td> <td> 1,941</td> </tr>
 <tr> <td> April 1</td> <td>NJ</td> <td> 22,255</td> <td> NA</td> <td> 355</td> </tr>
 <tr> <td> April 1</td> <td>MI</td> <td> 12,888</td> <td> NA</td> <td> 337</td> </tr>
@@ -27,7 +28,7 @@
 <tr> <td> April 1</td> <td>MA</td> <td> 7,738</td> <td> 682</td> <td> 122</td> </tr>
 <tr> <td> April 1</td> <td>IL</td> <td> 6,980</td> <td> NA</td> <td> 141</td> </tr>
 <tr> <td> April 1</td> <td>FL</td> <td> 6,955</td> <td> 949</td> <td> 87</td> </tr>
-<tr> <td> April 1</td> <td>WA</td> <td> 6,645</td> <td> NA</td> <td> 270</td> </tr>
+<tr> <td> April 1</td> <td>WA</td> <td> 6,593</td> <td> NA</td> <td> 270</td> </tr>
 <tr> <td> April 1</td> <td>LA</td> <td> 6,424</td> <td> NA</td> <td> 273</td> </tr>
 <tr> <td> April 1</td> <td>PA</td> <td> 5,805</td> <td> 620</td> <td> 74</td> </tr>
 <tr> <td> April 1</td> <td>GA</td> <td> 4,638</td> <td> 952</td> <td> 139</td> </tr>
@@ -75,13 +76,7 @@
 <tr> <td> April 1</td> <td>GU</td> <td> 77</td> <td> NA</td> <td> 3</td> </tr>
 <tr> <td> April 1</td> <td>VI</td> <td> 30</td> <td> NA</td> <td> 0</td> </tr>
 <tr> <td> April 1</td> <td>MP</td> <td> 6</td> <td> NA</td> <td> 0</td> </tr>
-<tr> <td> April 1</td> <td>AS</td> <td> 0</td> <td> NA</td> <td> 0</td> </tr>            <th>State</th>
-            <th>Date</th>
-            <th>Positive Cases</th>
-<th>Hospitalizations </th>
-<th>Deaths</th>
-          </tr>
-        </tfoot>
+<tr> <td> April 1</td> <td>AS</td> <td> 0</td> <td> NA</td> <td> 0</td> </tr>        </tbody>
       </table>
     </div>
 
@@ -93,7 +88,16 @@
     <script src="https://cdn.datatables.net/1.10.19/js/dataTables.bootstrap4.min.js"></script>
 
     <script>
-      $("mydatatable").DataTable();
+      $("#mydatatable").DataTable({
+        pageLength: 10,
+        filter: true,
+        deferRender: true,
+        scrollY: 600,
+        scrollCollapse: true,
+        scroller: true,
+        ordering: true,
+        select: true,
+      });
     </script>
   </body>
 </html>
