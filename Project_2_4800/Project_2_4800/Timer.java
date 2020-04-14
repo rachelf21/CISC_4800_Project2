@@ -8,7 +8,7 @@ import java.text.DecimalFormat;
  * @author Rachel Friedman
  * @version 1.0
  */
-class Timer {
+public class Timer {
 	long read_start = System.nanoTime();
 	long read_end = System.nanoTime();
 	long now = System.nanoTime();
