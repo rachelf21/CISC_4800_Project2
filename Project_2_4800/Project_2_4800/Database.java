@@ -30,9 +30,13 @@ import org.postgresql.core.BaseConnection;
  * <p>
  * <b>READ</b>
  * <ul>
+ * <li><code><b>selectByState</b>(Connection connection, String state)</code></li>
  * <li><code><b>selectByState</b>(Connection connection, String tableName, String state)</code></li>
+ * <li><code><b>selectByDate</b>(Connection connection, String date_user)
+ * </code></li>
  * <li><code><b>selectByDate</b>(Connection connection, String tableName, String date_user)
  * </code></li>
+ * <li><code><b>selectByStateDate</b>(Connection connection, String state, String date_user)</code></li>
  * <li><code><b>selectByStateDate</b>(Connection connection, String tableName, String state,
  * String date_user)</code></li>
  * </ul>
@@ -40,7 +44,8 @@ import org.postgresql.core.BaseConnection;
  * <b>UPDATE</b>
  * <ul>
  * <li><code><b>alterUser</b>(String db, String username, String password)</code></li>
- * <li><code><b><a href="#addRecords(java.sql.Connection,java.lang.String,java.lang.String)">addRecords</a></b>(Connection connection, String filename, String tableName)</code></li>
+ * <li><code><b><a href=
+ * "#addRecords(java.sql.Connection,java.lang.String,java.lang.String)">addRecords</a></b>(Connection connection, String filename, String tableName)</code></li>
  * </ul>
  * <p>
  * <b>DELETE</b>
@@ -67,9 +72,9 @@ public class Database {
 	 * Creates a Database object with a specified database name, username and
 	 * password
 	 * 
-	 * @param db   the database name
+	 * @param db       the database name
 	 * @param username the username
-	 * @param password  the password
+	 * @param password the password
 	 */
 	public Database(String db, String username, String password) {
 		try {
@@ -105,9 +110,8 @@ public class Database {
 	}
 
 	/**
-	 * Creates database
-	 * with name specified. Creates user with user and password as specified. Grants
-	 * user all privileges for newly created database.
+	 * Creates database with name specified. Creates user with user and password as
+	 * specified. Grants user all privileges for newly created database.
 	 * 
 	 * @param db1ConnectionString initial connection to default database
 	 * @param db2ConnectionString connection to new database. Includes database
@@ -302,7 +306,7 @@ public class Database {
 			String sql = "DELETE FROM " + tableName + " WHERE date < " + date + "; ";
 			stmt.executeUpdate(sql);
 			stmt.close();
-			System.out.println("Deleted all data prior to 2020-" + specifiedDate);
+			System.out.println("Removed all data prior to 2020-" + specifiedDate+"\n");
 		}
 		catch (Exception e) {
 			System.err.println(e.getClass().getName() + ": " + e.getMessage());
@@ -332,6 +336,53 @@ public class Database {
 			// e.getMessage());
 			System.out.println("Unable to delete current session user and database. Delete manually.");
 		}
+	}
+
+	/**
+	 * Performs a "select by state" query and returns positive cases,
+	 * hospitalizations and deaths by joining three tables for a specific state,
+	 * sorted by latest date first
+	 * 
+	 * @param connection the connection to the database
+	 * @param state      the specific state to fetch data for
+	 * @return the results of the query formatted in an html table
+	 */
+	public String selectByState(Connection connection, String state) {
+		String htmlResults = "";
+		String pattern = "MMMM d";
+		DateFormat df = new SimpleDateFormat(pattern);
+		DecimalFormat decF = new DecimalFormat("#,###");
+
+		try {
+			Statement stmt = connection.createStatement();
+			String sql = "SELECT positive.date, positive.st, positive, hospitalizedcumulative, death FROM positive JOIN hospitalizations On positive.id = hospitalizations.id JOIN death ON positive.id = death.id WHERE positive.st ="
+					+ " \'" + state.toUpperCase() + "\' ORDER BY date desc;";
+			System.out.println("Retrieving records for state = " + state.toUpperCase());
+			ResultSet rs = stmt.executeQuery(sql);
+
+			while (rs.next()) {
+				String st = rs.getString("st");
+				Date date = rs.getDate("date");
+				String dateF = df.format(date);
+				int pos = rs.getInt("positive");
+				String poss = decF.format(pos);
+				int hosp = rs.getInt("hospitalizedCumulative");
+				String hosps = decF.format(hosp);
+				if (hosp == 0)
+					hosps = "NA";
+				int death = rs.getInt("death");
+				String deaths = decF.format(death);
+				htmlResults = htmlResults + "\n\t\t\t\t<tr> <td> " + st + "</td> <td>" + date + "</td> <td> " + poss
+						+ "</td> <td> " + hosps + "</td> <td> " + deaths + "</td> </tr>";
+				//System.out.println(st + " | " + hosps + " | " + poss + " | " + deaths);
+			}
+			rs.close();
+			stmt.close();
+		}
+		catch (Exception e) {
+			System.err.println("selectByState " + e.getClass().getName() + ": " + e.getMessage());
+		}
+		return htmlResults;
 	}
 
 	/**
@@ -377,6 +428,58 @@ public class Database {
 		catch (Exception e) {
 			System.err.println("selectByState " + e.getClass().getName() + ": " + e.getMessage());
 		}
+		return htmlResults;
+	}
+
+	/**
+	 * Performs a "select by date" query and returns positive cases,
+	 * hospitalizations and deaths by joining three tables for a specific date,
+	 * sorted by decreasing positive cases
+	 * 
+	 * @param connection the connection to the database
+	 * @param date_user  the specific date to fetch data for
+	 * @return the results of the query formatted in an html table
+	 */
+	public String selectByDate(Connection connection, String date_user) {
+		String htmlResults = "";
+		String pattern = "MMMM d";
+		DateFormat df = new SimpleDateFormat(pattern);
+		DecimalFormat decF = new DecimalFormat("#,###");
+
+		try {
+			Statement stmt = connection.createStatement();
+			String sql = "SELECT positive.date, positive.st, positive, hospitalizedcumulative, death FROM positive JOIN hospitalizations On positive.id = hospitalizations.id JOIN death ON positive.id = death.id WHERE positive.date ="
+					+ " \'2020-" + date_user + "\' ORDER BY positive desc;";
+			System.out.println("Retrieving records from for date = 2020-" + date_user);
+			ResultSet rs = stmt.executeQuery(sql);
+
+			while (rs.next()) {
+				String st = rs.getString("st");
+				Date date = rs.getDate("date");
+				String dateF = df.format(date);
+				int pos = rs.getInt("positive");
+				String poss = decF.format(pos);
+				int hosp = rs.getInt("hospitalizedCumulative");
+				String hosps = decF.format(hosp);
+				if (hosp == 0)
+					hosps = "NA";
+				int death = rs.getInt("death");
+				String deaths = decF.format(death);
+				htmlResults = htmlResults + "\n<tr> <td> " + dateF + "</td> <td>" + st + "</td> <td> " + poss
+						+ "</td> <td> " + hosps + "</td> <td> " + deaths + "</td> </tr>";
+				//System.out.println(st + " | " + hosps + " | " + poss + " | " + deaths);
+			}
+			rs.close();
+			stmt.close();
+		}
+		catch (Exception e) {
+			System.out.println("Oops. Invalid date format. Please try again.");
+			// runQueries(connection, tableName);
+			// System.exit(0);
+			// System.err.println("selectByDate " + e.getClass().getName() + ": " +
+			// e.getMessage());
+		}
+
 		return htmlResults;
 	}
 
@@ -469,7 +572,59 @@ public class Database {
 				String deaths = decF.format(death);
 				htmlResults = htmlResults + "\n<tr> <td> " + dateF + "</td> <td>" + st + "</td> <td> " + poss
 						+ "</td> <td> " + hosps + "</td> <td> " + deaths + "</td> </tr>";
-				System.out.println(st + " | " + hosps + " | " + poss + " | " + deaths);
+				//System.out.println(st + " | " + hosps + " | " + poss + " | " + deaths);
+			}
+			rs.close();
+			stmt.close();
+		}
+		catch (Exception e) {
+			System.out.println("Oops. Invalid date format. Please try again.");
+			// runQueries(connection, tableName);
+			// System.err.println("selectByStateDate " + e.getClass().getName() + ": " +
+			// e.getMessage());
+		}
+		return htmlResults;
+	}
+
+	/**
+	 * Performs a "select by state and date" query and returns positive cases,
+	 * hospitalizations and deaths by joining three tables for a specific state on a
+	 * specific date
+	 * 
+	 * @param connection the connection to the database
+	 * @param state      the specific state to fetch data for
+	 * @param date_user  the specific date to fetch data for
+	 * @return the results of the query formatted in an html table
+	 */
+	public String selectByStateDate(Connection connection, String state, String date_user) {
+		String htmlResults = "";
+		String pattern = "MMMM d";
+		DateFormat df = new SimpleDateFormat(pattern);
+		DecimalFormat decF = new DecimalFormat("#,###");
+
+		try {
+			Statement stmt = connection.createStatement();
+			String sql = "SELECT positive.date, positive.st, positive, hospitalizedcumulative, death FROM positive JOIN hospitalizations On positive.id = hospitalizations.id JOIN death ON positive.id = death.id WHERE positive.date = \'2020-"
+					+ date_user + "\' AND positive.st=  \'" + state.toUpperCase() + "\';";
+			System.out.println(
+					"Retrieving records for state = " + state.toUpperCase() + " and date = 2020-" + date_user);
+			ResultSet rs = stmt.executeQuery(sql);
+
+			while (rs.next()) {
+				String st = rs.getString("st");
+				Date date = rs.getDate("date");
+				String dateF = df.format(date);
+				int pos = rs.getInt("positive");
+				String poss = decF.format(pos);
+				int hosp = rs.getInt("hospitalizedCumulative");
+				String hosps = decF.format(hosp);
+				if (hosp == 0)
+					hosps = "NA";
+				int death = rs.getInt("death");
+				String deaths = decF.format(death);
+				htmlResults = htmlResults + "\n<tr> <td> " + dateF + "</td> <td>" + st + "</td> <td> " + poss
+						+ "</td> <td> " + hosps + "</td> <td> " + deaths + "</td> </tr>";
+				//System.out.println(st + " | " + hosps + " | " + poss + " | " + deaths);
 			}
 			rs.close();
 			stmt.close();
@@ -485,9 +640,8 @@ public class Database {
 
 	/**
 	 * Creates a HashMap of the full name of the abbreviation of each state.<br>
-	 * This is used when checking to see if valid state was entered. 
-	 * This is also used when spelling out full name of state in place of
-	 * abbreviation.
+	 * This is used when checking to see if valid state was entered. This is also
+	 * used when spelling out full name of state in place of abbreviation.
 	 * 
 	 * @return a Hashmap of the abbreviations and full names of each of the 50
 	 *         states and 6 territories.
