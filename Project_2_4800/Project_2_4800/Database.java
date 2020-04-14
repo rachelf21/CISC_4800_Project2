@@ -15,7 +15,7 @@ import org.postgresql.copy.CopyManager;
 import org.postgresql.core.BaseConnection;
 
 /**
- * This class creates a Database object and implements the CRUD features that
+ * This class creates a Database object and implements the CRUD functionalities that
  * are necessary for a relational database. The methods that perform each of the
  * CRUD tasks are listed below.
  * <p>
